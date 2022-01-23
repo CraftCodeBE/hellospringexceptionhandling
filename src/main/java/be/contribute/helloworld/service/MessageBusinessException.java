@@ -1,7 +1,7 @@
 package be.contribute.helloworld.service;
 
 /**
- * Exception to use in the instrument CRUD library.
+ * Exception to use in the CRUD library.
  */
 public class MessageBusinessException extends RuntimeException {
     public static String ID_ALREADY_EXISTS = "The greatest trick the devil ever pulled, was taking this id.";

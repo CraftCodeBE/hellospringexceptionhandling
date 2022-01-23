@@ -2,69 +2,37 @@
 
 I like code as long as it's readable. So my resolution for the New Year, clean code. Easier said than done, and in most cases it requires a lot of preparation to end up with clean code. My priority is getting stuff to work and later on in the process I care about appearance. Functionality over beauty, rigth? Well, I learned it's more efficient to do both at the same time. Recently I discovered some great tools to speed up the process for clean Java code.
 
-For this post I will stick to exceptionhandling, but in my next posts I can write about the wonders of Project Lombok and maybe some of you know some kickass tools I could use to expand my toolbox. If so, please leave them in the comment section. 
+For this post I will stick to exceptionhandling, but in my next posts the wonders of custom Builders will follow and maybe some of you know some kickass tools I could use to expand my toolbox. If so, feel free to leave them in the comment section.
 
-## @ControllerAdvice && @ExceptionHandler
+<h2>Removing repetition</h2>
+To handle an exception you would basically write a try/catch in the controller to inform the user of a problem the api has encountered. It works, but in case of many exceptions and when your software grows, it can get crowded in the controllers. The following code shows a basic implementation of exception handling. In case something goes wrong during the call for all messages, you'll receive a response for which the Spring Framework already has a mechanism in place. You could use the standard message by returning e.getMessage(), as done below, or you could write your own message. The important part to notice is that in this approach you would have to write a similar catch for every endpoint.
 
-To handle an exception you would basically write a try/catch in the controller to inform the user of a problem the api has encountered. It works, but in case of many exceptions and when your software grows, it can get crowded in the controllers. For this problem Spring invented a specific way of exceptionhandling. There is a lot to find on this [topic](https://www.baeldung.com/exception-handling-for-rest-with-spring), I use my own approach based on some of these tutorials. 
+[img]
 
-The @ControlleAdvice annotation allows you to apply global code to a large number of controllers. It works like the @Component annotation which will handle exceptions across the whole application in one global handling component. It will return an error response based on the businessexception that is given. 
+As mentioned before, in large appplications with lot of controllers and CRUD-operations you would put a lot of time in repetitive code. For this problem Spring invented a more cryptic way of exceptionhandling. There is a lot to find on this <a href="https://www.baeldung.com/exception-handling-for-rest-with-spring">topic</a>, but I use my own approach based on some of these tutorials. Of course there can be optimizations, so feel free to make my effort even more practical. 
 
-    @ControllerAdvice
-    public class RestResponseEntityExceptionHandler {
-        
-        private ResponseEntity<ApiError> createErrorResponse(Exception ex) {
-        String errorMessage = ex.getMessage() == null ? "Unknown error." : ex.getMessage();
-        ApiError apiError = ApiError.builder().errorMessage(errorMessage).build();
+<h2>ExceptionHandler</h2>
 
-        if (ex.getMessage() == null) {
-            return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
-        }
+The first thing I do, is write class that handles exceptions. Apart from a constructor that initializes a dictionary, this class will handle for instance the MessageBusinessException. Of course other exceptions can be integrated as well. The important part to notice is the annotation @ControllerAdvice. The @ControlleAdvice allows you to apply global code to a large number of controllers. It will handle exceptions across the whole application in one global handling component and returns an error response based on the given businessexception. In this case only a MessageBusinessException, but for more complex applications other exceptions can be written. In the controller itself you don't have to do anything, except for maybe erasing all try/catch-constructions I want to replace.
 
-        HttpStatus status = apiErrorDictionary.getApiErrorMap().get(ex.getMessage());
+<img src="https://craftcode.be/wp-content/uploads/2022/01/exception_handling_4.png" alt="ControllerAdvice">
 
-        return new ResponseEntity<>(apiError, status);
-        }
-    }
+<img src="https://craftcode.be/wp-content/uploads/2022/01/exception_handling_1.png" alt="ExceptionHandler">
 
-Oddly, in the controller itself I doesn't have to do anything, except for maybe erasing all try/catch-constructions I want to replace. I created my own class in a different package to handle exceptions. This class is annotated with the @ControllerAdvice and in the class I use a annotated method for every businessexception I want to handle. In my case the MessageBusinessExeption is handled like this, the methodimplementation is printed above: 
+For the creation of an errormessage I've written a helper-method. The createErrorResponse is a helpermethod which returns the HttpStatus and response. Status and response are filtered out of the <a href="##Dictionary">ApiErrorDictionary</a> which is basically an unmodifiable map. It uses a model ApiError which in my example only contains a string to respond with a message. The benefit of this model is standardizing responses which can be the same in a lot of controllers. Instead of using an unmodifiable map, I could put the the key-value pairs in a database. Again, the idea is to mow all repetitive lines of code, which for complicated apps can add up. 
 
-    @ExceptionHandler(value = {MessageBusinessException.class})
-    protected ResponseEntity<ApiError> handleMessageBusinessException(MessageBusinessException ex) {
-        return createErrorResponse(ex);
-    }
+<img src="https://craftcode.be/wp-content/uploads/2022/01/exception_handling_2.png" alt="Unmodifiable Map">
 
-The createErrorResponse is a helpermethod which returns the correct HttpStatus and response. Status and response are filtered out of the [ApiErrorDictionary](##Dictionary) which is basically an unmodifiable map. It uses a model ApiError which in my example only contains a string to respond with a message. The benefit of this model, at least for me: you get a nice json-response.  
+<h2>MessageBusinessException</h2>
 
-## Dictionary
+There is one last class that needs to be added. An exception is often thrown in the service and then it goes up, through the controller, to the user. In order to throw custom exceptions, you'll need to write a custom class which extends RuntimeException. I tend to write such a businessexceptionclass per feature I implement. In my democode it's part of the servicepackage, but it could be another choice to structure your code as package by feature and declare a businessexceptionclass per feature. Anyhow, the MessageBusinessException would look like this.
 
-The ApiErrorDictionary-component returns an unmodifiable map which makes it easy to map a response to a status. This way you can use the same practice over and over again. I could even imagine putting the key/value-pairs in a database, altough I haven't tried it. 
+<img src="https://craftcode.be/wp-content/uploads/2022/01/exception_handling_3.png" alt="BusinessException">
 
-    private void fillMap() {
-        apiErrorMap.put(ID_ALREADY_EXISTS, HttpStatus.CONFLICT);
-    }
+<h2>Flow</h2>
 
-    public Map<String, HttpStatus> getApiErrorMap() {
-        return Collections.unmodifiableMap(apiErrorMap);
-    }
+With this construction in place I can easily integrate new exceptions. I only need to update the BusinessexceptionClass in the feature, add a key/value-pair to the ApiErrorDictionary and update the according service by throwing the exception. Easy peasy, oh so breezy :-).
 
-## MessageBusinessException
+<h2>Git</h2>
 
-There is one last class that needs to be added. The exceptionclass itself, which extends RuntimeException. I tend to write such a businessexceptionclass per feature I implement. In my democode it's part of the servicepackage, but it would be better to structure your code as package by feature and declare a businessexceptionclass per feature. Anyhow, the MessageBusinessException would look like this. 
-
-    public class MessageBusinessException extends RuntimeException {
-        public static String ID_ALREADY_EXISTS = "The greatest trick the devil ever pulled, was taking this id.";
-        public static String MESSAGE_NOT_FOUND = "There is no message in this bottle...";
-
-        public MessageBusinessException(String message) {
-            super(message);
-        }
-    }
-
-## Flow 
-
-With this construction in place I can easily integrate new exceptions. I only need to update the BusinessexceptionClass in the feature and add a key/value-pair to the ApiErrorDictionary. Easy peasy, oh so breezy :-) 
-
-## Git
-
-This small tutorial might be a bit short, but you can find the code on the [github-account](https://github.com/CraftCodeBE/hellospringexceptionhandling).
+This tutorial might be a bit short, but you can the code on the <a href="https://github.com/CraftCodeBE/hellospringexceptionhandling">github-account</a>.

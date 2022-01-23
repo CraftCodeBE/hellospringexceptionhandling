@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -28,7 +29,11 @@ public class HelloWorldController {
             value = "/hello",
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<HelloMessage>> getHello() {
-        return new ResponseEntity<>(helloService.getAllMessages(), HttpStatus.OK);
+        try {
+            return new ResponseEntity<>(helloService.getAllMessages(), HttpStatus.OK);
+        } catch (ResponseStatusException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 
     @RequestMapping(method = RequestMethod.POST,
